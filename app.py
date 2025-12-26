@@ -1,33 +1,68 @@
 import streamlit as st
-from utils import PrepProcesor, columns 
-
 import numpy as np
 import pandas as pd
 import joblib
 
-model = joblib.load('xgbpipe.joblib')
-st.title('Will you survive if you were among Titanic passengers or not :ship:')
-# PassengerId,Pclass,Name,Sex,Age,SibSp,Parch,Ticket,Fare,Cabin,Embarked
-passengerid = st.text_input("Input Passenger ID", '8585') 
-pclass = st.selectbox("Choose class", [1,2,3])
-name  = st.text_input("Input Passenger Name", 'Soheil Tehranipour')
-sex = st.select_slider("Choose sex", ['male','female'])
-age = st.slider("Choose age",0,100)
-sibsp = st.slider("Choose siblings",0,10)
-parch = st.slider("Choose parch",0,10)
-ticket = st.text_input("Input Ticket Number", "8585") 
-fare = st.number_input("Input Fare Price", 0,1000)
-cabin = st.text_input("Input Cabin", "C52") 
-embarked = st.select_slider("Did they Embark?", ['S','C','Q'])
+st.set_page_config(page_title="Titanic Survival Predictor", layout="centered")
+st.title("Will you survive if you were among Titanic passengers? 🚢")
 
-def predict(): 
-    row = np.array([passengerid,pclass,name,sex,age,sibsp,parch,ticket,fare,cabin,embarked]) 
-    X = pd.DataFrame([row], columns = columns)
-    prediction = model.predict(X)
-    if prediction[0] == 1: 
-        st.success('Passenger Survived :thumbsup:')
-    else: 
-        st.error('Passenger did not Survive :thumbsdown:') 
+# ستون‌ها (ثابت تعریف می‌کنیم، وابسته به utils نیست)
+columns = [
+    'PassengerId', 'Pclass', 'Name', 'Sex', 'Age',
+    'SibSp', 'Parch', 'Ticket', 'Fare', 'Cabin', 'Embarked'
+]
 
-trigger = st.button('Predict', on_click=predict)
+# لود امن مدل
+@st.cache_resource
+def load_model():
+    return joblib.load("xgbpipe.joblib")
 
+try:
+    model = load_model()
+    model_loaded = True
+except Exception as e:
+    model_loaded = False
+    st.error("❌ Model could not be loaded. Check versions or model file.")
+
+# ورودی‌ها
+passengerid = st.text_input("Passenger ID", "8585")
+pclass = st.selectbox("Passenger Class", [1, 2, 3])
+name = st.text_input("Passenger Name", "Soheil Tehranipour")
+sex = st.selectbox("Sex", ["male", "female"])
+age = st.slider("Age", 0, 100, 30)
+sibsp = st.slider("Number of siblings/spouses", 0, 10, 0)
+parch = st.slider("Number of parents/children", 0, 10, 0)
+ticket = st.text_input("Ticket Number", "8585")
+fare = st.number_input("Fare", 0.0, 1000.0, 50.0)
+cabin = st.text_input("Cabin", "C52")
+embarked = st.selectbox("Embarked", ["S", "C", "Q"])
+
+# پیش‌بینی
+if st.button("Predict"):
+    if not model_loaded:
+        st.warning("Model is not available.")
+    else:
+        row = [
+            passengerid,
+            int(pclass),
+            name,
+            sex,
+            float(age),
+            int(sibsp),
+            int(parch),
+            ticket,
+            float(fare),
+            cabin,
+            embarked
+        ]
+
+        X = pd.DataFrame([row], columns=columns)
+
+        try:
+            pred = model.predict(X)[0]
+            if pred == 1:
+                st.success("✅ Passenger Survived")
+            else:
+                st.error("❌ Passenger Did Not Survive")
+        except Exception as e:
+            st.error("Prediction failed. Model preprocessing mismatch.")
